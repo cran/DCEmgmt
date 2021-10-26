@@ -1,0 +1,107 @@
+---
+title: "'DCEmgmt': DCE data reshaping and processing"
+author: "Daniel Pérez-Troncoso"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DCEmgmt: DCE data reshaping and processing}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+## Introduction
+When a discrete choice experiment is conducted online, it is very likely that the output data will be in the wrong format. Most online survey tools present the respondents answers in a wide shaped format. The following table is a fraction of the database used in Pérez-Troncoso (2020) [https://doi.org/10.1007/s40258-021-00647-3](https://doi.org/10.1007/s40258-021-00647-3). 
+
+```{r, echo = FALSE}
+load("survey.rda")
+knitr::kable(cbind("B1_1" = data[1:10,1:1], "..." = c("...", "...","...","...","...","...","...","...","...", "..."), data[1:10,16:21])) 
+```
+
+This table might look unclear, but it contains the results of a discrete choice experiment carried out on an online form (as Google Forms or Qualtrics). The table above is displayed partially, but the user can access the complete database by using the following commands. 
+
+````{r, echo = TRUE, eval = FALSE}
+install.packages("DCEmgmt") #Install DCEmgmt from the CRAN repository
+library(DCEmgmt) #Load the DCEmgmt package
+data(survey) #Load the original database (It will appear as "data" in the RStudio environment)
+````
+This DCE was based on 16 choice sets. The choice sets were divided into two blocks and each block was presented to the half of the population. Thus, the first block, represented by the variables starting by "B1_" ranges from B1_1 to B1_8. Since only half of respondents answered this block, many rows are NA. This is because the database is coded in 'wide' format and each row represents one respondent. However, since the results will be analyzed with discrete choice models, the data needs to be coded in 'long' format. For instance, the following table represents the same database coded in 'long' format. 
+
+````{r, echo = FALSE}
+load("coded.rda")
+knitr::kable(data.c[1:10,1:11], row.names = FALSE)
+````
+
+As can be observed, now the rows represent the alternatives forming the choice sets. Thus, each respondent (denoted by the 'id' variable) has 16 rows (8 choice sets x 2 alternatives). The 'cs' variable indicates which block was answered by the respondent (cs from 1 to 8: first block; cs from 9 to 16: second block). The 'choice' variable indicates the chosen alternative (1: chosen, 0: not chosen). The 'alts' variable denote the alternatives forming each choice set; in this case there were only two alternatives per choice set. The rest of variable (sex, height, weight, age, educ) are known as case-specific variables and they do not change within the same 'id'.
+
+However, discrete choice models try to determine the probability of choice based on the characteristics of the alternatives. Thus, the database is missing the variables describing the characteristics of the alternatives. Once these variables have been added, the resulting database is shown in the following table. 
+
+````{r, echo = FALSE}
+load("coded.rda")
+knitr::kable(rbind(cbind(data.c[1:10, 1:3], "..." = c("...", "...", "...", "...", "...", "...", "...", "...", "...", "..."), data.c[1:10,10:23]),c("...","...","...","...","...","...","...","...","...","...","...","...","...","..."),cbind(data.c[1:10, 1:3], "..." = c("...", "...", "...", "...", "...", "...", "...", "...", "...", "..."), data.c[3820:3824,10:23])), row.names = FALSE)
+````
+
+As it can be seen, now each alternative is in the same row that its characteristics. Finally, the database is ready to be analyze through a discrete choice model. 
+
+## How to use DCEmgmt
+### Prerequisites
+
+The original database must be coded in wide format. The user can load the example data frame as reference by typing the following code. 
+
+````{r, echo = TRUE, eval = FALSE}
+install.packages("DCEmgmt") #Install DCEmgmt from the CRAN repository
+library(DCEmgmt) #Load the DCEmgmt package
+data(survey) #Load the original database (It will appear as "data" in the RStudio environment)
+````
+
+Normally, when the DCE is conducted in a platform such as Google Form or Qualtrics it is ready to be transformed used DCEmgmt. However, we will take a look at the main elements in case the user needs to make any modifications. First, each row must represent each answer to the survey. Thus, if the survey was completed by 30 users, the database must have 30 rows. Then, each column must contain each question in the survey. Thus, each column can represent either a choice set or a question on respondent characteristics. Finally, each choice set must contain a string (or a number) denoting the choice that the user made. For instance, if the possible answers were "Option A" and "Option B", when the user chooses the first option the value of that variable will be "Option A" (or any other string or number).
+
+Other important aspect is that, usually, DCEs are blocked into two parts. This happens when the DCE is designed with, for example, 16 choice sets and 8 choice sets are presented to half of respondents and the other 8 choice sets to the other half of respondents. In this case, the database will be similar but the respondents will not have answers for each column. Here, the columns must have a specific name. For example, Q1_2 could denote the second choice set of the first block and Q2_9 could denote the first choice set of the second block. Note that the second index in the second block - Q2_(9) - continues after the last question in the first choice set - Q1_(8) -. When there is only one block the choice sets can be called Q_1, Q_2, Q_3...
+
+The last step requires the user to input the design matrix. The design matrix contains the characteristics of each alternative and is essential to estimate the discrete choice model. The user can load an example running the following code. 
+
+````{r, echo = TRUE, eval = FALSE}
+install.packages("DCEmgmt") #Install DCEmgmt from the CRAN repository
+library(DCEmgmt) #Load the DCEmgmt package
+data(design) #Load the design matrix
+````
+
+As can be seen in the example design matrix (coded in long format), each row represent an alternative identified by its choice set, 'cs', and its alternative, 'alts'. The 'cs' variable must match the index used before (for example, Q2_10 is represented by 'cs' = 10). The alternatives must be specified in order. Thus, 'alts' = 1 is represented by the string "Option A" and 'alts' = 2 is represented by "Option B". The rest of the columns, for example 'pers1', are dummies representing a level which is (or is not) in the alternative. These alternative-specific variables can be dummies or monetary values. Learn more about the coding of the design matrix in [http://dx.doi.org/10.1016/j.jval.2016.04.004](http://dx.doi.org/10.1016/j.jval.2016.04.004). 
+
+### Use
+First, the database, usually an Excel sheet, must be imported as a data frame. Once this has been done, 'DCEmgmt' can be used following the next syntax: 
+
+````{r, echo = TRUE, eval = FALSE}
+install.packages("DCEmgmt") #Install DCEmgmt from the CRAN repository
+library(DCEmgmt) #Load the DCEmgmt package
+data(survey) #Load the database
+data(design) #Load the design matrix
+data.c <- DCEmgmt::DCEmgmt(data = data, keepvar = c("sex", "height", "weight", "age", "educ"), create.id = TRUE, blocks = c("B1_", "B2_"), sets = 8, alts = 2, options = c("Prefiero el servicio A", "Prefiero el servicio B"), design = design)
+````
+
+- data: the raw database as a data.frame or list. Check if it is a data frame or a list by typing "typeof(data)"
+- keepvar: a vector containing the name of the columns representing the case-specific variables (usually the users' characteristics).
+- create.id: if there is not a variable called 'id', it will be added automatically when create.id = TRUE
+- blocks: a vector indicating how the blocks were denoted. If there is only a block, the vector will only have one element. In this case, "B1_" is the beginning of the name of the choice sets in block one (B1_1, B1_2, ...).
+- sets: the number of choice sets per block. The blocks need to have the same number of choice sets. In this case, there are of 16 choice sets, 8 per block. 
+- alts: the number of alternatives per choice set. In this case only 2. 
+- options: the string used in the 'wide' database to denote the user choice in each choice set. 
+- design: the design matrix as data.frame or list. See "data(design)" for an example.
+
+The code will create a data frame called 'data.c'. 'data.c' is the same database in 'long' format. This new database is ready to be analyzed through discrete choice models. Using the following function, the user can quickly fit a conditional and mixed (random parameters) logit model.
+
+````{r, echo = TRUE, eval = FALSE}
+DCEestm(data.c = data.c, model = "all", params = c("pers2", "pers3", "pers4", "form2", "rut2", "prec2", "prec3", "prec4"), rand = c("pers2", "pers3", "pers4", "form2", "rut2", "prec2", "prec3", "prec4"))
+````
+- data.c: data coded using DCEmgmt.
+- model: the user can specify "clogit" for conditional logit, "mixlogit" for random parameters logit, or "all" for both. 
+- params: a vector including the names of the levels (columns representing the alternatives' characteristics) of the alternative-specific variables. 
+- rand: a vector specifiying wich variables should be treated as random parameters in the mixlogit (this argument must be omitted when estimating only the conditional logit.)
+
+
+Any question or suggestions please write to danielperez@ugr.es
